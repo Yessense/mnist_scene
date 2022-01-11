@@ -8,6 +8,7 @@ from torch import nn
 class Encoder(nn.Module):
     def __init__(self, image_size: Tuple[int, int, int] = (1, 128, 128), latent_dim: int = 1024):
         super(Encoder, self).__init__()
+
         # Layer parameters
         kernel_size = 4
         hidden_dim = 1024

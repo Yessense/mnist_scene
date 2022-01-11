@@ -8,14 +8,6 @@ from torch import nn
 class Encoder(nn.Module):
     def __init__(self, image_size: Tuple[int, int, int] = (1, 128, 128), latent_dim: int = 1024):
         super(Encoder, self).__init__()
-        """
-        Color: white
-        Shape: square, ellipse, heart
-        Scale: 6 values linearly spaced in [0.5, 1]
-        Orientation: 40 values in [0, 2 pi]
-        Position X: 32 values in [0, 1]
-        Position Y: 32 values in [0, 1]
-        """
         # Layer parameters
         kernel_size = 4
         hidden_dim = 1024

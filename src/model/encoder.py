@@ -26,11 +26,11 @@ class Encoder(nn.Module):
         self.conv5 = nn.Conv2d(128, 256, **cnn_kwargs)
 
         # Fully connected layers
-        self.lin1 = nn.Linear(np.product(self.reshape), hidden_dim)
-        self.lin2 = nn.Linear(hidden_dim, hidden_dim)
+        self.lin1 = nn.Linear(np.product(self.reshape), hidden_dim * 2)
+        self.lin2 = nn.Linear(hidden_dim * 2, hidden_dim * 2)
 
         # Fully connected layers for mean and variance
-        self.latent_layer = nn.Linear(hidden_dim, self.latent_dim * 2)
+        self.latent_layer = nn.Linear(hidden_dim * 2, self.latent_dim * 2)
 
         self.activation = torch.nn.GELU()
 
@@ -39,29 +39,34 @@ class Encoder(nn.Module):
 
         # Convolutional layers with activation
         x = self.activation(self.conv1(x))
-        print(f'Conv1 shape: {x.shape}')
+        # print(f'Conv1 shape: {x.shape}')
         x = self.activation(self.conv2(x))
-        print(f'Conv2 shape: {x.shape}')
+        # print(f'Conv2 shape: {x.shape}')
         x = self.activation(self.conv3(x))
-        print(f'Conv3 shape: {x.shape}')
+        # print(f'Conv3 shape: {x.shape}')
         x = self.activation(self.conv4(x))
-        print(f'Conv4 shape: {x.shape}')
+        # print(f'Conv4 shape: {x.shape}')
         x = self.activation(self.conv5(x))
-        print(f'Conv5 shape: {x.shape}')
+        # print(f'Conv5 shape: {x.shape}')
 
         # Fully connected layers with ReLu activations
         x = x.view((batch_size, -1))
+        # print(f'View shape: {x.shape}')
         x = self.activation(self.lin1(x))
+        # print(f'Lin1 shape: {x.shape}')
         x = self.activation(self.lin2(x))
+        # print(f'Lin2 shape: {x.shape}')
 
         # Fully connected layer for log variance and mean
         # x.shape -> (batch_size, latent_dim * 2)
         # x.shape -> (128, 1024 * 2)
         x = self.latent_layer(x)
+        # print(f'Latent shape: {x.shape}')
 
         # x.shape -> (batch_size, (mu+logvar), latent_dim)
         # x.shape -> (128, 2, 1024)
         x = x.view(-1, 2, self.latent_dim)
+        # print(f'View shape: {x.shape}')
 
         mu, logvar = x.unbind(1)
 

@@ -22,7 +22,6 @@ class Decoder(nn.Module):
 
         # Fully connected layers
         self.lin1 = nn.Linear(latent_dim, hidden_dim)
-        self.lin2 = nn.Linear(hidden_dim, hidden_dim)
         self.lin3 = nn.Linear(hidden_dim, np.product(self.reshape))
 
         # Convolutional layers
@@ -35,11 +34,11 @@ class Decoder(nn.Module):
         self.convT1 = nn.ConvTranspose2d(16, n_channels, **cnn_kwargs)
 
         self.activation = torch.nn.GELU()
+        self.final_activation = torch.nn.LeakyReLU()
 
     def forward(self, z):
         # Fully connected layers with ReLu activations
         x = self.activation(self.lin1(z))
-        x = self.activation(self.lin2(x))
         x = self.activation(self.lin3(x))
 
         x = x.view(-1, *self.reshape)
@@ -51,6 +50,6 @@ class Decoder(nn.Module):
         x = self.activation(self.convT2(x))
 
         # Sigmoid activation for final conv layer
-        x = torch.sigmoid(self.convT1(x))
+        x = self.final_activation(self.convT1(x))
 
         return x

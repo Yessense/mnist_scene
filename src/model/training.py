@@ -41,5 +41,5 @@ if __name__ == '__main__':
     trainer = pl.Trainer(gpus=gpus,
                          max_epochs=max_epochs,
                          profiler=profiler,
-                         callbacks=[checkpoint_callback, early_stop_callback])
+                         callbacks=[checkpoint_callback])
     trainer.fit(autoencoder, data_loader)

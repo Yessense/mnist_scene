@@ -3,7 +3,7 @@ from typing import Dict
 import torchvision  # type: ignore
 from matplotlib import pyplot as plt  # type: ignore
 from torch.utils.data import DataLoader
-from torchvision.transforms import ToTensor  # type: ignore
+from torchvision.transforms import ToTensor, Normalize  # type: ignore
 from torch.utils.data import Dataset
 import os
 import numpy as np

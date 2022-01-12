@@ -28,7 +28,7 @@ class Encoder(nn.Module):
 
         # Fully connected layers
         self.lin1 = nn.Linear(np.product(self.reshape), hidden_dim * 2)
-        self.lin2 = nn.Linear(hidden_dim * 2, hidden_dim * 2)
+        # self.lin2 = nn.Linear(hidden_dim * 2, hidden_dim * 2)
 
         # Fully connected layers for mean and variance
         self.latent_layer = nn.Linear(hidden_dim * 2, self.latent_dim * 2)
@@ -55,7 +55,7 @@ class Encoder(nn.Module):
         # print(f'View shape: {x.shape}')
         x = self.activation(self.lin1(x))
         # print(f'Lin1 shape: {x.shape}')
-        x = self.activation(self.lin2(x))
+        # x = self.activation(self.lin2(x))
         # print(f'Lin2 shape: {x.shape}')
 
         # Fully connected layer for log variance and mean

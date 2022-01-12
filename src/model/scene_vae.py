@@ -2,8 +2,11 @@ from typing import Tuple
 
 import pytorch_lightning as pl
 import torch.optim
+from matplotlib import pyplot as plt
 from pytorch_lightning.utilities.types import STEP_OUTPUT, EPOCH_OUTPUT
 from torch import nn
+
+from src.dataset.dataset import transform_to_image
 
 torch.set_printoptions(sci_mode=False)
 
@@ -32,17 +35,30 @@ class MnistSceneEncoder(pl.LightningModule):
         return sample
 
     def training_step(self, batch):
-        x = batch['masks'][:, 1]
+        masks = batch['masks']
+        scene = batch['scene']
 
-        mu, log_var = self.encoder(x)
-        z = self.reparameterize(mu, log_var)
+        masks_encoded = []
+        mus = []
+        logvars = []
+        for i in range(masks.shape[1]):
+            mu, log_var = self.encoder(masks[:,i])
+            mus.append(mu)
+            logvars.append(log_var)
+            z = self.reparameterize(mu, log_var)
+            masks_encoded.append(z)
+
+        mu = sum(mus)
+        log_var = sum(logvars)
+        z = sum(masks_encoded)
+
         reconstruction = self.decoder(z)
 
-        loss = self.loss_f(reconstruction, x, mu, log_var)
+        loss = self.loss_f(reconstruction, scene, mu, log_var)
         self.log("combined_loss", loss[0], prog_bar=True)
-        self.log("IMG", loss[1], prog_bar=True)
+        self.log("Reconstruct", loss[1], prog_bar=True)
         self.log("KLD", loss[2], prog_bar=True)
-        self.logger.experiment.add_image('Target',x[0], dataformats='CHW', global_step=self.step_n)
+        self.logger.experiment.add_image('Target', scene[0], dataformats='CHW', global_step=self.step_n)
         self.logger.experiment.add_image('Reconstruction', reconstruction[0], dataformats='CHW', global_step=self.step_n)
         self.step_n += 1
         return loss[0]

@@ -34,7 +34,7 @@ class Decoder(nn.Module):
         self.convT1 = nn.ConvTranspose2d(16, n_channels, **cnn_kwargs)
 
         self.activation = torch.nn.GELU()
-        self.final_activation = torch.nn.LeakyReLU()
+        self.final_activation = torch.nn.Sigmoid()
 
     def forward(self, z):
         # Fully connected layers with ReLu activations

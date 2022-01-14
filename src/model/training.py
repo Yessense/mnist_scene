@@ -1,45 +1,83 @@
+import torchvision
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torch.utils.data import DataLoader
+from torchvision.transforms import ToTensor
 
-from src.dataset.dataset import MnistScene
+from src.dataset.iterable_dataset import MnistIterableDataset
 from src.model.scene_vae import MnistSceneEncoder
 import pytorch_lightning as pl
+from argparse import ArgumentParser
 
-if __name__ == '__main__':
-    # parameters
-    mnist_train_data_dir = '/home/yessense/PycharmProjects/mnist_scene/mnist_train'
-    latent_dim = 1024
-    image_shape = (1, 128, 128)
+# ------------------------------------------------------------
+# Parse args
+# ------------------------------------------------------------
 
-    # data loader
-    data = MnistScene(mnist_train_data_dir)
-    data_loader = DataLoader(data,
-                             batch_size=128,
-                             shuffle=True,
-                             num_workers=16)
+parser = ArgumentParser()
 
-    # model
-    autoencoder = MnistSceneEncoder(latent_dim=latent_dim, image_size=image_shape)
+# add PROGRAM level args
+program_parser = parser.add_argument_group('program')
+program_parser.add_argument("--mnist_download_dir", type=str,
+                    default='/home/yessense/PycharmProjects/mnist_scene/mnist_download')
+program_parser.add_argument("--dataset_size", type=int, default= 10 ** 5)
+program_parser.add_argument("--batch_size", type=int, default=512)
 
-    # callbacks
-    monitor = 'combined_loss'
+# add model specific args
+parser = MnistSceneEncoder.add_model_specific_args(parent_parser=parser)
 
-    # early stop
-    patience = 5
-    early_stop_callback = EarlyStopping(monitor=monitor, patience=patience)
+# add all the available trainer options to argparse#
+parser = pl.Trainer.add_argparse_args(parser)
 
-    # checkpoint
-    save_top_k = 3
-    checkpoint_callback = ModelCheckpoint(monitor=monitor, save_top_k=save_top_k)
+# pars input
+args = parser.parse_args()
 
-    # trainer parameters
-    profiler = 'simple'  # 'simple'/'advanced'/None
-    max_epochs = 100
-    gpus = 1
+# ------------------------------------------------------------
+# Load dataset
+# ------------------------------------------------------------
 
-    # trainer
-    trainer = pl.Trainer(gpus=gpus,
-                         max_epochs=max_epochs,
-                         profiler=profiler,
-                         callbacks=[checkpoint_callback])
-    trainer.fit(autoencoder, data_loader)
+iterable_dataset = MnistIterableDataset(args.mnist_download_dir, args.dataset_size)
+loader = DataLoader(iterable_dataset, batch_size=args.batch_size, num_workers=1)
+
+# ------------------------------------------------------------
+# Load model
+# ------------------------------------------------------------
+
+# model
+dict_args = vars(args)
+autoencoder = MnistSceneEncoder(**dict_args)
+
+# ------------------------------------------------------------
+# Callbacks
+# ------------------------------------------------------------
+
+monitor = 'combined_loss'
+
+# early stop
+patience = 5
+early_stop_callback = EarlyStopping(monitor=monitor, patience=patience)
+
+# checkpoint
+save_top_k = 3
+checkpoint_callback = ModelCheckpoint(monitor=monitor, save_top_k=save_top_k)
+
+callbacks = [
+    checkpoint_callback,
+    # early_stop_callback,
+]
+
+# ------------------------------------------------------------
+# Trainer
+# ------------------------------------------------------------
+
+
+# trainer parameters
+profiler = 'simple'  # 'simple'/'advanced'/None
+max_epochs = 100
+gpus = 1
+
+# trainer
+trainer = pl.Trainer(gpus=gpus,
+                     max_epochs=max_epochs,
+                     profiler=profiler,
+                     callbacks=callbacks,
+                     limit_val_batches=0.0)
+trainer.fit(autoencoder, loader)

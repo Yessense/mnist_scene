@@ -2,7 +2,7 @@ from typing import Dict
 
 import torchvision  # type: ignore
 from matplotlib import pyplot as plt  # type: ignore
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, IterableDataset
 from torchvision.transforms import ToTensor, Normalize  # type: ignore
 from torch.utils.data import Dataset
 import os
@@ -59,8 +59,9 @@ class MnistScenesGenerator:
 
 
 class MnistScene(Dataset):
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, data: torch.Tensor, labels: torch.Tensor, size: int = 10 ** 5):
+        self.data = data
+        self.labels = labels
 
     def __len__(self):
         return len(os.listdir(self.path)) // 3
@@ -78,6 +79,10 @@ class MnistScene(Dataset):
         return {'scene': torch.from_numpy(scene).float(),
                 'masks': torch.from_numpy(masks).float(),
                 'labels': torch.from_numpy(labels)}
+
+class MnistIterableScene(IterableDataset):
+    def __init__(self, data):
+        pass
 
 
 def download_and_create_scenes(path_to_download: str, path_to_scenes: str) -> None:
@@ -120,8 +125,8 @@ if __name__ == '__main__':
     mnist_download_data_dir = '/home/yessense/PycharmProjects/mnist_scene/mnist_download'
     mnist_train_data_dir = '/home/yessense/PycharmProjects/mnist_scene/mnist_train'
 
-    # download_and_create_scenes(path_to_download=mnist_download_data_dir,
-    #                            path_to_scenes=mnist_train_data_dir)
+    download_and_create_scenes(path_to_download=mnist_download_data_dir,
+                               path_to_scenes=mnist_train_data_dir)
 
     data = MnistScene(mnist_train_data_dir)
     data_loader = DataLoader(data,

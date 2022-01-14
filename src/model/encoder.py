@@ -27,11 +27,11 @@ class Encoder(nn.Module):
         self.conv5 = nn.Conv2d(128, 256, **cnn_kwargs)
 
         # Fully connected layers
-        self.lin1 = nn.Linear(np.product(self.reshape), hidden_dim * 2)
+        self.lin1 = nn.Linear(np.product(self.reshape), self.latent_dim * 2)
         # self.lin2 = nn.Linear(hidden_dim * 2, hidden_dim * 2)
 
         # Fully connected layers for mean and variance
-        self.latent_layer = nn.Linear(hidden_dim * 2, self.latent_dim * 2)
+        self.latent_layer = nn.Linear(self.latent_dim * 2, self.latent_dim * 2)
 
         self.activation = torch.nn.GELU()
 

@@ -36,3 +36,13 @@ class MnistIterableDataset(IterableDataset):
 
     def __iter__(self):
         return self.sample_generator()
+
+mnist_download_data_dir = '/home/yessense/PycharmProjects/mnist_scene/mnist_download'
+
+iterable_dataset = MnistIterableDataset(mnist_download_data_dir, 1000)
+loader = DataLoader(iterable_dataset, batch_size=4)
+
+x = next(iter(loader))
+
+for batch in loader:
+    print("Done")

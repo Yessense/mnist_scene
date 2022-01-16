@@ -22,6 +22,8 @@ class MnistIterableDataset(IterableDataset):
     def sample_generator(self):
         for i in range(self.size):
             scene = np.zeros((1, 128, 128))
+            masks = []
+            labels = []
             for y_start in self.y_starts:
                 for x_start in self.x_starts:
                     img_num = np.random.randint(len(self.data))
@@ -32,17 +34,34 @@ class MnistIterableDataset(IterableDataset):
                     y = y_start + y_shift
                     if np.random.randint(10) <= 6:
                         scene[:, y:y + 28, x:x + 28] = img
-            yield torch.from_numpy(scene).float(), 'hello'
+                        labels.append(1.)
+                        cur_mask = np.zeros_like(scene)
+                        cur_mask[:, y:y + 28, x: x + 28] = img
+                        masks.append(cur_mask)
+                    else:
+                        cur_mask = np.zeros_like(scene)
+                        masks.append(cur_mask)
+                        labels.append(0)
+            # go next image if empty
+            labels = torch.from_numpy(np.array(labels)).float()
+            if torch.sum(labels) == 0:
+                continue
+
+            yield (torch.from_numpy(scene).float(),
+                   torch.from_numpy(np.array(masks)).float(),
+                   labels.unsqueeze(-1))
 
     def __iter__(self):
         return self.sample_generator()
 
-mnist_download_data_dir = '/home/yessense/PycharmProjects/mnist_scene/mnist_download'
 
-iterable_dataset = MnistIterableDataset(mnist_download_data_dir, 1000)
-loader = DataLoader(iterable_dataset, batch_size=4)
+if __name__ == '__main__':
+    mnist_download_data_dir = '/home/yessense/PycharmProjects/mnist_scene/mnist_download'
 
-x = next(iter(loader))
+    iterable_dataset = MnistIterableDataset(mnist_download_data_dir, 1000)
+    loader = DataLoader(iterable_dataset, batch_size=4)
 
-for batch in loader:
-    print("Done")
+    x = next(iter(loader))
+
+    for batch in loader:
+        print("Done")

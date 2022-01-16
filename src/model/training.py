@@ -19,7 +19,7 @@ program_parser = parser.add_argument_group('program')
 program_parser.add_argument("--mnist_download_dir", type=str,
                             default='/home/yessense/PycharmProjects/mnist_scene/mnist_download')
 program_parser.add_argument("--dataset_size", type=int, default=10 ** 5)
-program_parser.add_argument("--batch_size", type=int, default=512)
+program_parser.add_argument("--batch_size", type=int, default=256)
 
 # add model specific args
 parser = MnistSceneEncoder.add_model_specific_args(parent_parser=parser)

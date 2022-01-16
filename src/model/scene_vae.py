@@ -33,6 +33,7 @@ class MnistSceneEncoder(pl.LightningModule):
         self.decoder = Decoder(latent_dim=latent_dim, image_size=image_size)
         self.img_dim = image_size
         self.lr = lr
+        self.latent_dim = latent_dim
 
     def forward(self, x):
         x = self.encoder(x)
@@ -46,37 +47,48 @@ class MnistSceneEncoder(pl.LightningModule):
         return sample
 
     def training_step(self, batch):
-        # masks = batch['masks']
-        # scene = batch['scene'] / 255
-        # labels = batch['labels'].to(torch.float)
-        scene = batch / 255
+        scene, masks, labels = batch
+        masks /= 255.
+        scene /= 255.
 
-        # masks_encoded = []
-        # mus = []
-        # logvars = []
-        # for i in range(masks.shape[1]):
-        #     mask = masks[:, i]
-        #     mu, log_var = self.encoder(mask)
-        #     z = self.reparameterize(mu, log_var)
-        #
-        #     mus.append(mu)
-        #     logvars.append(log_var)
-        #     masks_encoded.append(z)
-        #
-        # mu: torch.Tensor = torch.stack(mus).transpose(0, 1)
-        # log_var: torch.Tensor = torch.stack(logvars).transpose(0, 1)
-        # z: torch.Tensor = torch.stack(masks_encoded).transpose(0, 1)
-        #
-        # zeroing: torch.Tensor = labels.unsqueeze(-1).expand(z.size())
-        #
-        # mu = (mu * zeroing).sum(axis=1)
-        # log_var = (log_var * zeroing).sum(axis=1)
-        # z = (z * zeroing).sum(axis=1)
+        masks_encoded = []
+        mus = []
+        logvars = []
 
-        mu, log_var = self.encoder(scene)
-        z = self.reparameterize(mu, log_var)
+        for i in range(masks.shape[1]):
+            mask = masks[:, i]
+            mu, log_var = self.encoder(mask)
 
+            z = self.reparameterize(mu, log_var)
+
+            mus.append(mu)
+            logvars.append(log_var)
+
+            masks_encoded.append(z)
+
+        # collect mask vectors to one
+        mu: torch.Tensor = torch.stack(mus, dim=1)
+        log_var: torch.Tensor = torch.stack(logvars, dim=1)
+        z: torch.Tensor = torch.stack(masks_encoded, dim=1)
+
+        # multiply by zero empty pictures
+        zeroing: torch.Tensor = labels.expand(z.size())
+        divider = torch.sum(labels, dim=1)
+        divider = divider.expand(-1, self.latent_dim)
+
+        # divide by number of actual images
+        mu = torch.sum(mu * zeroing, dim=1) / divider
+        log_var = torch.sum(log_var * zeroing, dim=1) / divider
+        z = torch.sum(z * zeroing, dim=1) / divider
+
+        # reconstruct from sum vector
         reconstruction = self.decoder(z)
+
+        # calculate loss
+        loss = self.loss_f(reconstruction, scene, mu, log_var)
+        # mu, log_var = self.encoder(scene)
+        # z = self.reparameterize(mu, log_var)
+
         # l = torch.nn.BCELoss(reduction='sum')
         # lo = l(reconstruction, scene)
         # img = transform_to_image(scene[0])
@@ -89,7 +101,6 @@ class MnistSceneEncoder(pl.LightningModule):
         #     lol = scene.detach().cpu().numpy()
         #     print("Done")
 
-        loss = self.loss_f(reconstruction, scene, mu, log_var)
         self.log("combined_loss", loss[0], prog_bar=True)
         self.log("Reconstruct", loss[1], prog_bar=True)
         self.log("KLD", loss[2], prog_bar=True)

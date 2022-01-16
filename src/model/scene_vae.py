@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from typing import Tuple
+from typing import Tuple, List
 
 import pytorch_lightning as pl
 import torch.optim
@@ -34,26 +34,27 @@ class MnistSceneEncoder(pl.LightningModule):
         self.img_dim = image_size
         self.lr = lr
         self.latent_dim = latent_dim
+        self.save_hyperparameters()
 
     def forward(self, x):
-        x = self.encoder(x)
-        return x
+        mu, log_var = self.encoder(x)
+        return mu
 
-    @staticmethod
-    def reparameterize(mu, log_var):
-        std = torch.exp(0.5 * log_var)  # standard deviation
-        eps = torch.randn_like(std)  # `randn_like` as we need the same size
-        sample = mu + (eps * std)  # sampling as if coming from the input space
-        return sample
+    def reparameterize(self, mu, log_var):
+        if self.training:
+            std = torch.exp(0.5 * log_var)
+            eps = torch.randn_like(std)
+            return mu + std * eps
+        else:
+            # Reconstruction mode
+            return mu
 
     def training_step(self, batch):
         scene, masks, labels = batch
-        masks /= 255.
-        scene /= 255.
 
         masks_encoded = []
         mus = []
-        logvars = []
+        log_vars = []
 
         for i in range(masks.shape[1]):
             mask = masks[:, i]
@@ -62,13 +63,13 @@ class MnistSceneEncoder(pl.LightningModule):
             z = self.reparameterize(mu, log_var)
 
             mus.append(mu)
-            logvars.append(log_var)
+            log_vars.append(log_var)
 
             masks_encoded.append(z)
 
         # collect mask vectors to one
         mu: torch.Tensor = torch.stack(mus, dim=1)
-        log_var: torch.Tensor = torch.stack(logvars, dim=1)
+        log_var: torch.Tensor = torch.stack(log_vars, dim=1)
         z: torch.Tensor = torch.stack(masks_encoded, dim=1)
 
         # multiply by zero empty pictures
@@ -101,6 +102,7 @@ class MnistSceneEncoder(pl.LightningModule):
         #     lol = scene.detach().cpu().numpy()
         #     print("Done")
 
+        # log training process
         self.log("combined_loss", loss[0], prog_bar=True)
         self.log("Reconstruct", loss[1], prog_bar=True)
         self.log("KLD", loss[2], prog_bar=True)
@@ -108,6 +110,7 @@ class MnistSceneEncoder(pl.LightningModule):
         self.logger.experiment.add_image('Reconstruction', reconstruction[0], dataformats='CHW',
                                          global_step=self.step_n)
         self.step_n += 1
+
         return loss[0]
 
     def configure_optimizers(self):

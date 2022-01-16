@@ -47,8 +47,8 @@ class MnistIterableDataset(IterableDataset):
             if torch.sum(labels) == 0:
                 continue
 
-            yield (torch.from_numpy(scene).float(),
-                   torch.from_numpy(np.array(masks)).float(),
+            yield (torch.from_numpy(scene / 255.).float(),
+                   torch.from_numpy(np.array(masks) / 255.).float(),
                    labels.unsqueeze(-1))
 
     def __iter__(self):

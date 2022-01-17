@@ -49,6 +49,88 @@ class MnistSceneEncoder(pl.LightningModule):
             # Reconstruction mode
             return mu
 
+    def latent_subtraction(self, batch, choices):
+        scenes, masks, labels = batch
+
+        masks = masks.to(self.device)
+        labels = labels.to(self.device)
+        choices = choices.to(self.device)
+
+        masks_encoded = []
+
+        for i in range(masks.shape[1]):
+            mask = masks[:, i]
+            mu, log_var = self.encoder(mask)
+
+            masks_encoded.append(mu)
+
+        # scenes
+        z: torch.Tensor = torch.stack(masks_encoded, dim=1)
+
+        # process just scenes
+        zeroing_scenes: torch.Tensor = labels.expand(z.size())
+        divider = torch.sum(labels, dim=1)
+        divider = divider.expand(-1, self.latent_dim)
+        scenes_z = torch.sum(z * zeroing_scenes, dim=1) / divider
+
+        # process result vector
+        scene1 = z[0]
+        scene2 = z[1]
+
+        # labels for scenes
+        labels1 = labels[0]
+        labels2 = labels[1]
+
+        # zeroing empty positions in 2 scene
+        zeroing_choices: torch.Tensor = choices.unsqueeze(-1).expand(scene2.size())
+        # calculate divider
+        # xor
+        # divider_choices = torch.sum(labels1.int() ^ (labels2.int() & choices.unsqueeze(-1).int()))
+        # or
+        divider_choices = torch.sum(labels1.int() | (labels2.int() & choices.unsqueeze(-1).int()))
+        if divider_choices == 0:
+            divider_choices = 1
+
+        result1 = torch.sum(scene1 * zeroing_scenes[0], dim=0)
+        result2 = torch.sum(scene2 * zeroing_scenes * zeroing_choices, dim=0)
+
+        result_z = result1 - result2 / divider_choices
+        result_z = result_z.unsqueeze(0)
+
+        return self.decoder(scenes_z), self.decoder(result_z)
+
+    def position_latent_operations(self, batch, choices):
+        scenes, masks, labels = batch
+
+        masks = masks.to(self.device)
+        labels = labels.to(self.device)
+        choices = choices.to(self.device)
+
+        masks_encoded = []
+
+        for i in range(masks.shape[1]):
+            mask = masks[:, i]
+            mu, log_var = self.encoder(mask)
+
+            masks_encoded.append(mu)
+
+        z: torch.Tensor = torch.stack(masks_encoded, dim=1)
+
+        zeroing_scenes: torch.Tensor = labels.expand(z.size())
+        zeroing_choices: torch.Tensor = choices.unsqueeze(-1).expand(z.size())
+
+        divider = torch.sum(labels, dim=1)
+        divider = divider.expand(-1, self.latent_dim)
+
+        divider_choices = torch.sum(choices.unsqueeze(-1).int() & labels.int())
+        assert divider_choices != 0
+
+        scenes_z = torch.sum(z * zeroing_scenes, dim=1) / divider
+        result_z = torch.sum(z * zeroing_choices * zeroing_scenes, dim=(0, 1)) / divider_choices
+        result_z = result_z.unsqueeze(0)
+
+        return self.decoder(scenes_z), self.decoder(result_z)
+
     def training_step(self, batch):
         scene, masks, labels = batch
 
@@ -98,9 +180,6 @@ class MnistSceneEncoder(pl.LightningModule):
         # img = transform_to_image(reconstruction[0])
         # plt.imshow(img)
         # plt.show()
-        # if torch.any(scene < 0.) or torch.any(scene > 1.):
-        #     lol = scene.detach().cpu().numpy()
-        #     print("Done")
 
         # log training process
         self.log("combined_loss", loss[0], prog_bar=True)
